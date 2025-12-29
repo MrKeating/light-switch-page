@@ -4,10 +4,34 @@ import React from 'react';
 interface LightBulbProps {
   isOn: boolean;
   brightness: number;
+  colorTemp: number; // 0 (warm) to 100 (cool)
 }
 
-const LightBulb: React.FC<LightBulbProps> = ({ isOn, brightness }) => {
+const LightBulb: React.FC<LightBulbProps> = ({ isOn, brightness, colorTemp }) => {
   const effectiveBrightness = isOn ? brightness / 100 : 0;
+  
+  // Interpolate color based on temperature
+  // Warm: Amber (251, 191, 36) -> Neutral: White (255, 255, 255) -> Cool: Blue (153, 204, 255)
+  const getBulbColor = () => {
+    if (colorTemp <= 50) {
+      // Warm to Neutral
+      const ratio = colorTemp / 50;
+      const r = 251 + (255 - 251) * ratio;
+      const g = 191 + (255 - 191) * ratio;
+      const b = 36 + (255 - 36) * ratio;
+      return `rgb(${r}, ${g}, ${b})`;
+    } else {
+      // Neutral to Cool
+      const ratio = (colorTemp - 50) / 50;
+      const r = 255 - (255 - 153) * ratio;
+      const g = 255 - (255 - 204) * ratio;
+      const b = 255;
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+  };
+
+  const currentColor = getBulbColor();
+  const baseOffColor = '#334155';
   
   return (
     <div className="relative flex flex-col items-center">
@@ -15,7 +39,7 @@ const LightBulb: React.FC<LightBulbProps> = ({ isOn, brightness }) => {
       <div 
         className="absolute -top-32 w-64 h-64 rounded-full blur-[100px] transition-all duration-700 ease-out"
         style={{
-          backgroundColor: isOn ? 'rgba(251, 191, 36, 1)' : 'rgba(30, 58, 138, 1)',
+          backgroundColor: isOn ? currentColor : 'rgba(30, 58, 138, 1)',
           opacity: isOn ? 0.2 + (effectiveBrightness * 0.6) : 0.1,
           transform: `scale(${isOn ? 1 + (effectiveBrightness * 0.8) : 1})`,
         }}
@@ -34,8 +58,8 @@ const LightBulb: React.FC<LightBulbProps> = ({ isOn, brightness }) => {
           strokeLinejoin="round" 
           className="transition-colors duration-700"
           style={{
-            color: isOn ? `rgba(251, 191, 36, ${0.4 + (effectiveBrightness * 0.6)})` : '#334155',
-            filter: isOn ? `drop-shadow(0 0 ${5 + effectiveBrightness * 20}px rgba(251, 191, 36, ${0.5 + effectiveBrightness * 0.5}))` : 'none'
+            color: isOn ? currentColor : baseOffColor,
+            filter: isOn ? `drop-shadow(0 0 ${5 + effectiveBrightness * 20}px ${currentColor})` : 'none'
           }}
         >
           <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5" />

@@ -1,21 +1,39 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import LightBulb from './components/LightBulb';
 import Toggle from './components/Toggle';
 import Dimmer from './components/Dimmer';
+import ColorTempSlider from './components/ColorTempSlider';
 import { getSmartResponse } from './services/geminiService';
+import { audioService } from './services/audioService';
 import { LightStatus } from './types';
+
+const STORAGE_KEYS = {
+  BRIGHTNESS: 'lumina_brightness',
+  COLOR_TEMP: 'lumina_color_temp',
+};
 
 const App: React.FC = () => {
   const [isOn, setIsOn] = useState(false);
-  const [brightness, setBrightness] = useState(80);
+  const [brightness, setBrightness] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.BRIGHTNESS);
+    return saved !== null ? parseInt(saved, 10) : 80;
+  });
+  const [colorTemp, setColorTemp] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.COLOR_TEMP);
+    return saved !== null ? parseInt(saved, 10) : 30; // Default slightly warm
+  });
   const [aiMessage, setAiMessage] = useState("Darkness is efficient.");
   const [isLoading, setIsLoading] = useState(false);
+  const lastTickValue = useRef(brightness);
 
   const handleToggle = useCallback(async () => {
     const newState = !isOn;
     setIsOn(newState);
     setIsLoading(true);
+
+    // Play Sound
+    audioService.playToggleSound(newState);
 
     // Call Gemini for a witty response based on the new state
     const status = newState ? LightStatus.ON : LightStatus.OFF;
@@ -26,13 +44,24 @@ const App: React.FC = () => {
 
   const handleBrightnessChange = (value: number) => {
     setBrightness(value);
+    localStorage.setItem(STORAGE_KEYS.BRIGHTNESS, value.toString());
+    
+    // Play a subtle tick if the value moved significantly
+    if (Math.abs(value - lastTickValue.current) >= 2) {
+      audioService.playDimmerTick(value);
+      lastTickValue.current = value;
+    }
   };
 
-  // Calculate background color based on brightness
-  const bgOpacity = isOn ? (brightness / 100) * 0.15 : 0;
-  const bgColor = isOn 
-    ? `rgba(255, 250, 240, 1)` 
-    : `rgba(15, 23, 42, 1)`;
+  const handleColorTempChange = (value: number) => {
+    setColorTemp(value);
+    localStorage.setItem(STORAGE_KEYS.COLOR_TEMP, value.toString());
+    
+    // Subtle audio feedback for temp change too
+    if (Math.abs(value - lastTickValue.current) >= 5) {
+      audioService.playDimmerTick(value);
+    }
+  };
 
   return (
     <div 
@@ -73,18 +102,25 @@ const App: React.FC = () => {
 
         {/* Visual Light Section */}
         <div className="pt-4">
-          <LightBulb isOn={isOn} brightness={brightness} />
+          <LightBulb isOn={isOn} brightness={brightness} colorTemp={colorTemp} />
         </div>
 
         {/* Control Section */}
         <div className="flex flex-col items-center space-y-8 w-full">
-          <div className="flex flex-col items-center space-y-10 w-full bg-white/5 backdrop-blur-sm p-8 rounded-3xl border border-white/10 shadow-xl">
+          <div className="flex flex-col items-center space-y-8 w-full bg-white/5 backdrop-blur-md p-8 rounded-3xl border border-white/10 shadow-xl">
             <Toggle isOn={isOn} onToggle={handleToggle} />
-            <Dimmer 
-              value={brightness} 
-              onChange={handleBrightnessChange} 
-              disabled={!isOn} 
-            />
+            <div className="w-full space-y-6 flex flex-col items-center">
+              <Dimmer 
+                value={brightness} 
+                onChange={handleBrightnessChange} 
+                disabled={!isOn} 
+              />
+              <ColorTempSlider
+                value={colorTemp}
+                onChange={handleColorTempChange}
+                disabled={!isOn}
+              />
+            </div>
           </div>
           
           <div className="h-12 flex items-center justify-center text-center px-4">
