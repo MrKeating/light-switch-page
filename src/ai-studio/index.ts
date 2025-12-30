@@ -1,2 +1,1 @@
-// Managed by SyncBridge
-export const Placeholder = () => null;
+export const BridgeReady = true;
