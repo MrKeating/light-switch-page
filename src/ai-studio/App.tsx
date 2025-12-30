@@ -1,14 +1,17 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import LightBulb from './components/LightBulb';
 import Toggle from './components/Toggle';
 import Dimmer from './components/Dimmer';
+import SettingsMenu from './components/SettingsMenu';
 import { getSmartResponse } from './services/geminiService';
 import { audioService } from './services/audioService';
-import { LightStatus } from './types';
+import { LightStatus, AIPersonality } from './types';
 
 const STORAGE_KEYS = {
   BRIGHTNESS: 'lumina_brightness',
+  SOUNDS_ENABLED: 'lumina_sounds_enabled',
+  PERSONALITY: 'lumina_personality',
 };
 
 const App: React.FC = () => {
@@ -17,31 +20,54 @@ const App: React.FC = () => {
     const saved = localStorage.getItem(STORAGE_KEYS.BRIGHTNESS);
     return saved !== null ? parseInt(saved, 10) : 80;
   });
+  
+  // Settings States
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [soundsEnabled, setSoundsEnabled] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SOUNDS_ENABLED);
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [personality, setPersonality] = useState<AIPersonality>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.PERSONALITY);
+    return (saved as AIPersonality) || AIPersonality.SASSY;
+  });
+
   const [aiMessage, setAiMessage] = useState("Darkness is efficient.");
   const [isLoading, setIsLoading] = useState(false);
   const lastTickValue = useRef(brightness);
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SOUNDS_ENABLED, soundsEnabled.toString());
+  }, [soundsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PERSONALITY, personality);
+  }, [personality]);
 
   const handleToggle = useCallback(async () => {
     const newState = !isOn;
     setIsOn(newState);
     setIsLoading(true);
 
-    // Play Sound
-    audioService.playToggleSound(newState);
+    // Play Sound if enabled
+    if (soundsEnabled) {
+      audioService.playToggleSound(newState);
+    }
 
-    // Call Gemini for a witty response based on the new state
+    // Call Gemini with current personality
     const status = newState ? LightStatus.ON : LightStatus.OFF;
-    const message = await getSmartResponse(status);
+    const message = await getSmartResponse(status, personality);
     setAiMessage(message);
     setIsLoading(false);
-  }, [isOn]);
+  }, [isOn, soundsEnabled, personality]);
 
   const handleBrightnessChange = (value: number) => {
     setBrightness(value);
     localStorage.setItem(STORAGE_KEYS.BRIGHTNESS, value.toString());
     
-    // Play a subtle tick if the value moved significantly
-    if (Math.abs(value - lastTickValue.current) >= 2) {
+    // Play a subtle tick if enabled
+    if (soundsEnabled && Math.abs(value - lastTickValue.current) >= 2) {
       audioService.playDimmerTick(value);
       lastTickValue.current = value;
     }
@@ -49,10 +75,36 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="min-h-screen w-full transition-colors duration-1000 flex flex-col items-center justify-center p-6"
+      className="min-h-screen w-full transition-colors duration-1000 flex flex-col items-center justify-center p-6 relative"
       style={{ backgroundColor: isOn ? '#fffaf0' : '#0f172a' }}
     >
-      {/* Dynamic Background Overlay for extra brightness feel */}
+      {/* Settings Trigger */}
+      <button 
+        onClick={() => setIsSettingsOpen(true)}
+        className={`absolute top-8 right-8 p-3 rounded-full backdrop-blur-md border transition-all duration-500 z-40 ${
+          isOn 
+            ? 'bg-slate-900/5 border-slate-900/10 text-slate-900 hover:bg-slate-900/10' 
+            : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+        }`}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+
+      {/* Settings Menu Component */}
+      <SettingsMenu 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        ambientSoundEnabled={soundsEnabled}
+        setAmbientSoundEnabled={setSoundsEnabled}
+        personality={personality}
+        setPersonality={setPersonality}
+        isOn={isOn}
+      />
+
+      {/* Dynamic Background Overlay */}
       <div 
         className="fixed inset-0 pointer-events-none transition-opacity duration-700"
         style={{ 
