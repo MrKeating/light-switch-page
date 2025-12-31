@@ -1,12 +1,17 @@
-import React, { Suspense } from 'react';
-import { GeneratedApp } from './ai';
 
+import React from 'react';
+import { AiBridge } from './ai';
+
+/**
+ * SyncBridge Managed App
+ * This file redirects your app to the AI Studio design folder.
+ * 
+ * Safety: minHeight is applied to prevent layout collapse.
+ */
 function App() {
   return (
-    <div id="lovable-bridge-container">
-      <Suspense fallback={<div style={{padding: '50px', textAlign: 'center', color: '#64748b', background: '#0f172a', minHeight: '100vh'}}>Linking AI Assets...</div>}>
-        <GeneratedApp />
-      </Suspense>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <AiBridge />
     </div>
   );
 }
