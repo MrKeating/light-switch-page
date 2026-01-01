@@ -2,15 +2,12 @@
 import React from 'react';
 import { AiBridge } from './ai';
 
-/**
- * SyncBridge Managed App
- * This file redirects your app to the AI Studio design folder.
- * 
- * Safety: minHeight is applied to prevent layout collapse.
- */
 function App() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="syncbridge-mirror-root" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <style>{`
+        html, body, #root { height: 100% !important; min-height: 100vh !important; margin: 0 !important; }
+      `}</style>
       <AiBridge />
     </div>
   );
