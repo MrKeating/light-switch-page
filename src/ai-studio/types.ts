@@ -8,9 +8,3 @@ export enum LightStatus {
   ON = 'ON',
   OFF = 'OFF'
 }
-
-export enum AIPersonality {
-  WITTY = 'Witty',
-  ZEN = 'Zen',
-  FORMAL = 'Formal'
-}

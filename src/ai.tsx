@@ -1,38 +1,30 @@
 
-import React, { lazy, Suspense, Component, ReactNode, ErrorInfo } from 'react';
+import React, { lazy, Suspense, Component } from 'react';
 
-interface ErrorBoundaryProps {
-  children: ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
-
-class DesignErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
+class DesignErrorBoundary extends Component {
+  constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
   }
-  
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState { 
+  static getDerivedStateFromError(error) { 
     return { hasError: true, error }; 
   }
-  
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('DesignErrorBoundary caught error:', error, errorInfo);
-  }
-  
   render() {
     if (this.state.hasError) {
       return (
         <div style={{ padding: '40px', background: '#020617', color: '#3b82f6', border: '1px solid #1e293b', borderRadius: '1.5rem', margin: '20px', fontFamily: 'monospace' }}>
           <h2 style={{ color: '#ef4444', margin: '0 0 10px 0' }}>[SyncBridge] Bridge Failure</h2>
-          <p style={{ fontSize: '14px', color: '#94a3b8' }}>Could not load the design components.</p>
+          <p style={{ fontSize: '14px', color: '#94a3b8' }}>Vite could not resolve dependencies in <b>src/ai-studio</b>.</p>
           <div style={{ background: '#000', padding: '15px', borderRadius: '12px', fontSize: '11px', marginTop: '15px', overflowX: 'auto', border: '1px solid #334155' }}>
             <div style={{ color: '#ef4444', fontWeight: 'bold' }}>Error Details:</div>
             {this.state.error?.message}
+          </div>
+          <div style={{ marginTop: '20px', fontSize: '12px', color: '#64748b' }}>
+            <b>Probable Cause:</b> Missing packages (e.g., @google/genai) or missing Vite aliases.<br/><br/>
+            <b>Resolution Steps:</b><br/>
+            1. Run <code>npm install @google/genai</code> in Lovable terminal.<br/>
+            2. Click "Patch Vite Config" in the SyncBridge Hub.<br/>
+            3. Ensure your App entry point exists in /src/ai-studio.
           </div>
         </div>
       );
@@ -41,8 +33,17 @@ class DesignErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-// Load the AI Studio App component
-const DesignEntry = lazy(() => import('./ai-studio/App'));
+// Optimized entry point resolution for mirrored designs
+const DesignEntry = lazy(() => {
+  return import('./ai-studio/App.tsx')
+    .catch(() => import('./ai-studio/App.jsx'))
+    .catch(() => import('./ai-studio/index.tsx'))
+    .catch(() => import('./ai-studio/index.jsx'))
+    .then(mod => {
+      // Prioritize default export, fallback to any valid React component found in exports
+      return { default: mod.default || Object.values(mod).find(v => typeof v === 'function') };
+    });
+});
 
 export const AiBridge = (props: any) => (
   <DesignErrorBoundary>
